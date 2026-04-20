@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from app.models.models import User
 
-SECRET_KEY = "secret_scrum_projet_fil_rouge_2024"   # Change in production!
+SECRET_KEY = os.getenv("SECRET_KEY", "secret_scrum_projet_fil_rouge_2024")
 ALGORITHM  = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h
 
