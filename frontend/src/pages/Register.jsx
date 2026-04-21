@@ -37,12 +37,12 @@ export default function Register() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label className="label">Prénom</label>
-              <input className="input" placeholder="Rayen"
+              <input className="input" placeholder="Prenom"
                 value={form.prenom} onChange={e => setForm({ ...form, prenom: e.target.value })} required id="register-prenom" />
             </div>
             <div>
               <label className="label">Nom</label>
-              <input className="input" placeholder="Kouki"
+              <input className="input" placeholder="Nom"
                 value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} required id="register-nom" />
             </div>
           </div>
