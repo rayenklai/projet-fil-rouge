@@ -19,6 +19,7 @@ def _project_out(p: Project) -> dict:
         "date_fin":    p.date_fin,
         "owner_id":    str(p.owner_id),
         "member_ids":  [str(m) for m in p.member_ids],
+        "enseignant_id": str(p.enseignant_id) if p.enseignant_id else None,
         "created_at":  p.created_at,
     }
 
@@ -29,6 +30,7 @@ async def create_project(
     project_in: ProjectCreate,
     current_user: User = Depends(get_current_user),
 ):
+    ens_id = PydanticObjectId(project_in.enseignant_id) if project_in.enseignant_id else None
     project = Project(
         titre       = project_in.titre,
         description = project_in.description,
@@ -36,6 +38,7 @@ async def create_project(
         date_fin    = project_in.date_fin,
         owner_id    = current_user.id,
         member_ids  = [current_user.id],     # creator is auto-member
+        enseignant_id = ens_id,
     )
     await project.insert()
     return _project_out(project)

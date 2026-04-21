@@ -44,6 +44,7 @@ class ProjectCreate(BaseModel):
     description: Optional[str] = None
     date_debut:  Optional[datetime] = None
     date_fin:    Optional[datetime] = None
+    enseignant_id: Optional[str] = None
 
 class ProjectOut(BaseModel):
     id:          str
@@ -53,6 +54,7 @@ class ProjectOut(BaseModel):
     date_fin:    Optional[datetime]
     owner_id:    str
     member_ids:  List[str]
+    enseignant_id: Optional[str] = None
     created_at:  datetime
 
 class AddMemberRequest(BaseModel):

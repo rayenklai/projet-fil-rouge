@@ -61,3 +61,10 @@ async def get_users(current_user: User = Depends(get_current_user)):
     users = await User.find(User.role == "etudiant").to_list()
     return [_user_out(u) for u in users]
 
+
+# ── Liste des enseignants (pour assigner un enseignant à un projet) ─────────
+@router.get("/enseignants")
+async def get_enseignants(current_user: User = Depends(get_current_user)):
+    users = await User.find(User.role == "enseignant").to_list()
+    return [_user_out(u) for u in users]
+

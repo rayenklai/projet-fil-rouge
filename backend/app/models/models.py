@@ -31,6 +31,7 @@ class Project(Document):
     date_fin:    Optional[datetime] = None
     owner_id:    PydanticObjectId           # ref → User._id
     member_ids:  List[PydanticObjectId] = [] # refs → User._id
+    enseignant_id: Optional[PydanticObjectId] = None  # ref → User (enseignant)
     created_at:  datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

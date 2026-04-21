@@ -6,18 +6,24 @@ export default function ProjectMessages({ projectId }) {
   const [text, setText] = useState('')
   const [loading, setLoading] = useState(true)
   const messagesEndRef = useRef(null)
-  
+  const userSentRef = useRef(false)
+  const initialLoadRef = useRef(true)
+
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
   useEffect(() => {
+    initialLoadRef.current = true
     fetchMessages()
     const interval = setInterval(fetchMessages, 10000)
     return () => clearInterval(interval)
   }, [projectId])
 
   useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    // Only auto-scroll on initial load or when user sends a message
+    if (messagesEndRef.current && (initialLoadRef.current || userSentRef.current)) {
+      messagesEndRef.current.scrollIntoView({ behavior: initialLoadRef.current ? 'auto' : 'smooth' })
+      initialLoadRef.current = false
+      userSentRef.current = false
     }
   }, [messages])
 
@@ -35,8 +41,9 @@ export default function ProjectMessages({ projectId }) {
   async function handleSend(e) {
     e.preventDefault()
     if (!text.trim()) return
-    
+
     try {
+      userSentRef.current = true
       await sendMessage(projectId, { text })
       setText('')
       fetchMessages()
@@ -46,35 +53,28 @@ export default function ProjectMessages({ projectId }) {
   }
 
   return (
-    <div className="card" style={{ display: 'flex', flexDirection: 'column', height: '400px', padding: '0' }}>
-      <div style={{ padding: '16px', borderBottom: '1px solid var(--border)', background: 'var(--bg2)' }}>
-        <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '16px' }}>Discussion d'équipe</h2>
+    <div className="card messages-panel">
+      <div className="messages-header">
+        💬 Discussion d'équipe
       </div>
-      
-      <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+      <div className="messages-body">
         {loading ? (
           <p style={{ color: 'var(--text2)', textAlign: 'center', fontSize: '13px' }}>Chargement...</p>
         ) : messages.length === 0 ? (
-          <p style={{ color: 'var(--text2)', textAlign: 'center', fontSize: '13px' }}>Aucun message pour l'instant. Lancez la discussion !</p>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: '8px' }}>
+            <span style={{ fontSize: '32px' }}>💬</span>
+            <p style={{ color: 'var(--text2)', fontSize: '13px' }}>Aucun message. Lancez la discussion !</p>
+          </div>
         ) : (
           messages.map(m => {
             const isMe = m.sender_id === user.id
             return (
               <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start' }}>
-                <span style={{ fontSize: '11px', color: 'var(--text2)', marginBottom: '4px' }}>
-                  {m.sender_prenom} {m.sender_nom} — {new Date(m.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
+                <span style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '4px', fontWeight: 500 }}>
+                  {m.sender_prenom} {m.sender_nom} · {new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <div style={{
-                  background: isMe ? 'var(--accent)' : 'var(--bg3)',
-                  color: isMe ? '#fff' : 'var(--text)',
-                  padding: '8px 12px',
-                  borderRadius: '12px',
-                  borderTopRightRadius: isMe ? '0' : '12px',
-                  borderTopLeftRadius: isMe ? '12px' : '0',
-                  fontSize: '14px',
-                  maxWidth: '80%',
-                  wordBreak: 'break-word',
-                }}>
+                <div className={`message-bubble ${isMe ? 'message-mine' : 'message-other'}`}>
                   {m.text}
                 </div>
               </div>
@@ -84,16 +84,17 @@ export default function ProjectMessages({ projectId }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div style={{ padding: '12px', borderTop: '1px solid var(--border)', background: 'var(--bg2)' }}>
-        <form onSubmit={handleSend} style={{ display: 'flex', gap: '8px' }}>
-          <input 
-            className="input" 
-            style={{ flex: 1, padding: '8px 12px', fontSize: '14px' }} 
-            placeholder="Votre message..." 
-            value={text} 
-            onChange={e => setText(e.target.value)} 
+      <div className="messages-footer">
+        <form onSubmit={handleSend}>
+          <input
+            className="input"
+            style={{ flex: 1, padding: '9px 14px', fontSize: '13px' }}
+            placeholder="Votre message..."
+            value={text}
+            onChange={e => setText(e.target.value)}
+            id="message-input"
           />
-          <button type="submit" className="btn btn-primary" style={{ padding: '8px 16px' }} disabled={!text.trim()}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={!text.trim()}>
             Envoyer
           </button>
         </form>

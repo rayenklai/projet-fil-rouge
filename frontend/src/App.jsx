@@ -2,12 +2,18 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
+import TeacherDashboard from './pages/TeacherDashboard'
 import ProjectDetail from './pages/ProjectDetail'
 import Navbar from './components/Navbar'
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('token')
   return token ? children : <Navigate to="/login" replace />
+}
+
+function HomePage() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  return user.role === 'enseignant' ? <TeacherDashboard /> : <Dashboard />
 }
 
 export default function App() {
@@ -19,7 +25,7 @@ export default function App() {
         <Route path="/" element={
           <PrivateRoute>
             <Navbar />
-            <Dashboard />
+            <HomePage />
           </PrivateRoute>
         } />
         <Route path="/projects/:id" element={

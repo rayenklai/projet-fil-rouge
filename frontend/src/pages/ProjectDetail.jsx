@@ -8,7 +8,7 @@ export default function ProjectDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [project, setProject] = useState(null)
-  const [tasks,   setTasks]   = useState([])
+  const [tasks, setTasks]     = useState([])
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -16,8 +16,10 @@ export default function ProjectDetail() {
   const [allUsers, setAllUsers] = useState([])
   const [selectedUser, setSelectedUser] = useState('')
   const [addingMember, setAddingMember] = useState(false)
-  
+  const [activeTab, setActiveTab] = useState('kanban')
+
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+  const isTeacher = currentUser.role === 'enseignant'
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -78,96 +80,158 @@ export default function ProjectDetail() {
     }
   }
 
-  if (loading) return <p style={{ padding: '32px', color: 'var(--text2)' }}>Chargement...</p>
+  if (loading) return (
+    <div className="page">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="skeleton" style={{ height: '40px', width: '200px' }} />
+        <div className="skeleton" style={{ height: '20px', width: '350px' }} />
+        <div className="grid-stats" style={{ marginTop: '12px' }}>
+          {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: '80px' }} />)}
+        </div>
+      </div>
+    </div>
+  )
   if (!project) return <p style={{ padding: '32px', color: 'var(--accent2)' }}>Projet introuvable.</p>
 
   const done    = tasks.filter(t => t.statut === 'Terminé').length
+  const inProg  = tasks.filter(t => t.statut === 'En cours').length
+  const todo    = tasks.filter(t => t.statut === 'À faire').length
   const total   = tasks.length
   const percent = total > 0 ? Math.round((done / total) * 100) : 0
 
-  return (
-    <div className="page-fade" style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
+  // My tasks (for student view)
+  const myTasks = tasks.filter(t => t.assignee_id === currentUser.id)
 
-      {/* Back + Header */}
-      <button className="btn btn-ghost" onClick={() => navigate('/')}
-        style={{ marginBottom: '20px', fontSize: '13px', padding: '6px 12px' }}>
+  // Per-member task breakdown (for teacher view)
+  const memberStats = members.map(m => {
+    const memberTasks = tasks.filter(t => t.assignee_id === m.id)
+    const mDone = memberTasks.filter(t => t.statut === 'Terminé').length
+    return {
+      ...m,
+      total: memberTasks.length,
+      done: mDone,
+      percent: memberTasks.length > 0 ? Math.round((mDone / memberTasks.length) * 100) : 0,
+    }
+  })
+
+  return (
+    <div className="page page-fade">
+      {/* Back */}
+      <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')} style={{ marginBottom: '20px' }} id="back-btn">
         ← Retour
       </button>
 
+      {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <h1 style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '30px', lineHeight: 1.1 }}>
-              {project.titre}
-            </h1>
-            <button className="btn btn-ghost" onClick={handleExportPdf} style={{ fontSize: '13px', padding: '6px 12px', border: '1px solid var(--border)' }}>
-              📄 Exporter PDF
+        <div style={{ flex: 1, minWidth: '250px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <h1 className="page-title">{project.titre}</h1>
+            <button className="btn btn-ghost btn-sm" onClick={handleExportPdf} id="export-pdf-btn">
+              📄 PDF
             </button>
           </div>
           {project.description && (
-            <p style={{ color: 'var(--text2)', marginTop: '6px', fontSize: '14px', maxWidth: '600px' }}>
+            <p className="page-subtitle" style={{ maxWidth: '600px' }}>
               {project.description}
             </p>
           )}
         </div>
         {project.date_fin && (
-          <div className="card" style={{ padding: '12px 18px', textAlign: 'center' }}>
-            <p style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '2px' }}>DATE FIN</p>
-            <p style={{ fontWeight: 700, fontSize: '15px' }}>
+          <div className="card" style={{ padding: '12px 20px', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text3)', fontSize: '10px', marginBottom: '2px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date fin</p>
+            <p style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '15px' }}>
               {new Date(project.date_fin).toLocaleDateString('fr-FR')}
             </p>
           </div>
         )}
       </div>
 
-      {/* Progress + Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '28px' }}>
+      {/* Stats cards */}
+      <div className="grid-stats" style={{ marginBottom: '24px' }}>
         {[
-          { label: 'Total tâches',  value: total,                color: 'var(--text)' },
-          { label: 'À faire',       value: tasks.filter(t => t.statut === 'À faire').length,  color: 'var(--text2)' },
-          { label: 'En cours',      value: tasks.filter(t => t.statut === 'En cours').length, color: 'var(--warning)' },
-          { label: 'Terminées',     value: done,                 color: 'var(--success)' },
-          { label: 'Membres',       value: members.length,       color: 'var(--accent)' },
+          { label: 'Total tâches',  value: total, color: 'var(--text)' },
+          { label: 'À faire',       value: todo,   color: 'var(--text2)' },
+          { label: 'En cours',      value: inProg, color: 'var(--warning)' },
+          { label: 'Terminées',     value: done,   color: 'var(--success)' },
+          { label: 'Membres',       value: members.length, color: 'var(--accent-h)' },
         ].map(stat => (
-          <div key={stat.label} className="card" style={{ padding: '14px 18px' }}>
-            <p style={{ color: 'var(--text2)', fontSize: '11px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {stat.label}
-            </p>
-            <p style={{ fontFamily: 'var(--font-head)', fontWeight: 800, fontSize: '24px', color: stat.color }}>
-              {stat.value}
-            </p>
+          <div key={stat.label} className="card stat-card">
+            <p className="stat-label">{stat.label}</p>
+            <p className="stat-value" style={{ color: stat.color }}>{stat.value}</p>
           </div>
         ))}
       </div>
 
       {/* Progress bar */}
       {total > 0 && (
-        <div className="card" style={{ padding: '16px 20px', marginBottom: '28px' }}>
+        <div className="card" style={{ padding: '16px 22px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text2)' }}>Avancement global</span>
+            <span style={{ fontSize: '13px', color: 'var(--text2)', fontWeight: 500 }}>Avancement global</span>
             <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--success)' }}>{percent}%</span>
           </div>
-          <div style={{ background: 'var(--bg3)', borderRadius: '4px', height: '8px', overflow: 'hidden' }}>
-            <div style={{
-              height: '100%',
-              width: `${percent}%`,
-              background: 'linear-gradient(90deg, var(--accent), var(--success))',
-              borderRadius: '4px',
-              transition: 'width 0.4s ease',
-            }} />
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+      )}
+
+      {/* ── Teacher: Member Progress Breakdown ─────────────────────── */}
+      {isTeacher && memberStats.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h2 className="section-title" style={{ marginBottom: '14px' }}>👥 Progression par membre</h2>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {memberStats.map(m => (
+              <div key={m.id} className="task-row" style={{ gap: '14px' }}>
+                <div className="avatar avatar-sm">{m.prenom[0]}{m.nom[0]}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{m.prenom} {m.nom}</p>
+                  <div className="progress-bar" style={{ height: '5px' }}>
+                    <div className="progress-fill" style={{ width: `${m.percent}%` }} />
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <span className="badge badge-success" style={{ fontSize: '10px' }}>{m.done}/{m.total}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Student: My Tasks in This Project ──────────────────────── */}
+      {!isTeacher && myTasks.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h2 className="section-title" style={{ marginBottom: '14px' }}>🎯 Mes tâches dans ce projet ({myTasks.length})</h2>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {myTasks.map(task => {
+              const statusCfg = {
+                'À faire':  { badge: 'badge-ghost', icon: '○' },
+                'En cours': { badge: 'badge-warning', icon: '◐' },
+                'Terminé':  { badge: 'badge-success', icon: '●' },
+              }
+              const cfg = statusCfg[task.statut] || statusCfg['À faire']
+              return (
+                <div key={task.id} className="task-row">
+                  <span style={{ fontSize: '14px' }}>{cfg.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontWeight: 600, fontSize: '14px' }}>{task.titre}</p>
+                    {task.description && <p style={{ fontSize: '12px', color: 'var(--text2)', marginTop: '2px' }}>{task.description}</p>}
+                  </div>
+                  <span className={`badge ${cfg.badge}`}>{task.statut}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
 
       {/* Members */}
-      <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '16px' }}>
-            Membres
-          </h2>
-          {currentUser.role !== 'enseignant' && project.owner_id === currentUser.id && (
-            <button className="btn btn-ghost" onClick={openAddMemberModal} style={{ fontSize: '13px', padding: '4px 10px', color: 'var(--accent)' }}>
-              + Ajouter membre
+      <div style={{ marginBottom: '24px' }}>
+        <div className="section-header">
+          <h2 className="section-title">Membres</h2>
+          {!isTeacher && project.owner_id === currentUser.id && (
+            <button className="btn btn-ghost btn-sm" onClick={openAddMemberModal} style={{ color: 'var(--accent)' }} id="add-member-btn">
+              + Ajouter
             </button>
           )}
         </div>
@@ -176,63 +240,58 @@ export default function ProjectDetail() {
             <div key={m.id} style={{
               background: 'var(--bg2)',
               border: '1px solid var(--border)',
-              borderRadius: '8px',
+              borderRadius: 'var(--radius-sm)',
               padding: '8px 14px',
               fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
+              transition: 'border-color 0.2s',
             }}>
-              <span style={{
-                width: '26px', height: '26px',
-                borderRadius: '50%',
-                background: 'var(--accent)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '11px', fontWeight: 700, color: '#fff',
-              }}>
-                {m.prenom[0]}{m.nom[0]}
-              </span>
+              <div className="avatar avatar-sm">{m.prenom[0]}{m.nom[0]}</div>
               {m.prenom} {m.nom}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Kanban & Messages */}
-      <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 2, minWidth: '300px' }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '16px', marginBottom: '14px' }}>
-            Tableau des tâches
-          </h2>
+      {/* ── Tab Switcher (mobile-friendly) ─────────────────────────── */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px' }}>
+        <button className={`btn btn-sm ${activeTab === 'kanban' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setActiveTab('kanban')}>📋 Tâches</button>
+        <button className={`btn btn-sm ${activeTab === 'messages' ? 'btn-primary' : 'btn-ghost'}`}
+          onClick={() => setActiveTab('messages')}>💬 Messages</button>
+      </div>
+
+      {/* Kanban & Messages — Desktop: side by side, Mobile: tabs */}
+      <div className="flex-layout" style={{ display: 'flex', gap: '24px' }}>
+        <div style={{ flex: 2, minWidth: '300px', display: activeTab === 'kanban' ? 'block' : 'none' }}
+          className={activeTab === 'kanban' ? '' : 'mobile-hidden'}>
           <KanbanBoard
             tasks={tasks}
             members={members}
             projectId={id}
             onRefresh={fetchAll}
+            userRole={currentUser.role}
           />
         </div>
-        <div style={{ flex: 1, minWidth: '300px' }}>
-          <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '16px', marginBottom: '14px' }}>
-            Messages
-          </h2>
+        <div style={{ flex: 1, minWidth: '300px', display: activeTab === 'messages' ? 'block' : 'none' }}
+          className={activeTab === 'messages' ? '' : 'mobile-hidden'}>
           <ProjectMessages projectId={id} />
         </div>
       </div>
 
       {/* Add Member Modal */}
       {showAddMember && (
-        <div style={{
-          position: 'fixed', inset: 0, background: '#000a',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
-        }} onClick={() => setShowAddMember(false)}>
-          <div className="card" style={{ width: '100%', maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowAddMember(false)}>
+          <div className="card modal-content" style={{ width: '100%', maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
             <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '18px', marginBottom: '20px' }}>
               Ajouter un membre
             </h2>
             <form onSubmit={handleAddMember} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label className="label">Sélectionner un étudiant</label>
-                <select className="input" value={selectedUser} onChange={e => setSelectedUser(e.target.value)} required>
+                <select className="input" value={selectedUser} onChange={e => setSelectedUser(e.target.value)} required id="member-select">
                   <option value="" disabled>-- Choisir --</option>
                   {allUsers.map(u => (
                     <option key={u.id} value={u.id}>{u.prenom} {u.nom} ({u.email})</option>
@@ -241,7 +300,7 @@ export default function ProjectDetail() {
               </div>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '4px' }}>
                 <button type="button" className="btn btn-ghost" onClick={() => setShowAddMember(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary" disabled={addingMember || !selectedUser}>
+                <button type="submit" className="btn btn-primary" disabled={addingMember || !selectedUser} id="add-member-submit">
                   {addingMember ? 'Ajout...' : 'Ajouter'}
                 </button>
               </div>

@@ -4,8 +4,8 @@ import { login } from '../services/api'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [form, setForm]     = useState({ email: '', password: '' })
-  const [error, setError]   = useState('')
+  const [form, setForm]       = useState({ email: '', password: '' })
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
@@ -25,54 +25,39 @@ export default function Login() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--bg)',
-    }}>
-      <div className="card page-fade" style={{ width: '100%', maxWidth: '400px' }}>
-        <h1 style={{
-          fontFamily: 'var(--font-head)',
-          fontWeight: 800,
-          fontSize: '28px',
-          marginBottom: '4px',
-          color: 'var(--accent)',
-        }}>
-          ProjetHub
-        </h1>
-        <p style={{ color: 'var(--text2)', marginBottom: '28px', fontSize: '14px' }}>
-          Connectez-vous à votre espace
-        </p>
+    <div className="auth-page">
+      <div className="auth-card card page-fade">
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <div style={{ fontSize: '36px', marginBottom: '12px' }}>🚀</div>
+          <h1 id="login-heading">ProjetHub</h1>
+          <p style={{ color: 'var(--text2)', fontSize: '14px', marginTop: '6px' }}>
+            Connectez-vous à votre espace
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label className="label">Email</label>
             <input className="input" type="email" placeholder="votre@email.com"
-              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
+              value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required id="login-email" />
           </div>
           <div>
             <label className="label">Mot de passe</label>
             <input className="input" type="password" placeholder="••••••••"
-              value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+              value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required id="login-password" />
           </div>
 
-          {error && (
-            <p style={{ color: 'var(--accent2)', fontSize: '13px', background: '#ff658420', padding: '10px 14px', borderRadius: '8px' }}>
-              {error}
-            </p>
-          )}
+          {error && <p className="auth-error">{error}</p>}
 
           <button className="btn btn-primary" type="submit" disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', marginTop: '4px' }}>
+            style={{ width: '100%', padding: '12px', marginTop: '4px', fontSize: '14px' }} id="login-submit">
             {loading ? 'Connexion...' : 'Se connecter'}
           </button>
         </form>
 
-        <p style={{ marginTop: '20px', fontSize: '13px', color: 'var(--text2)', textAlign: 'center' }}>
+        <p style={{ marginTop: '24px', fontSize: '13px', color: 'var(--text2)', textAlign: 'center' }}>
           Pas de compte ?{' '}
-          <Link to="/register" style={{ color: 'var(--accent)' }}>S'inscrire</Link>
+          <Link to="/register" style={{ color: 'var(--accent-h)', fontWeight: 600 }}>S'inscrire</Link>
         </p>
       </div>
     </div>
