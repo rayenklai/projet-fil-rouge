@@ -55,7 +55,12 @@ class ProjectOut(BaseModel):
     owner_id:    str
     member_ids:  List[str]
     enseignant_id: Optional[str] = None
+    final_link:    Optional[str] = None
+    final_file_name: Optional[str] = None
     created_at:  datetime
+
+class ProjectSubmit(BaseModel):
+    final_link: str
 
 class AddMemberRequest(BaseModel):
     user_id: str                             # MongoDB ObjectId as string

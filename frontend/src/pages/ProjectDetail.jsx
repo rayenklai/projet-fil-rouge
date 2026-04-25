@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getProject, getTasks, getMembers, exportPdf, getUsers, addMember } from '../services/api'
+import { getProject, getTasks, getMembers, exportPdf, getUsers, addMember, deleteProject, removeMember, submitProjectFinalLink, uploadProjectFile, downloadProjectFile } from '../services/api'
 import KanbanBoard from '../components/KanbanBoard'
 import ProjectMessages from '../components/ProjectMessages'
 
@@ -18,6 +18,12 @@ export default function ProjectDetail() {
   const [addingMember, setAddingMember] = useState(false)
   const [activeTab, setActiveTab] = useState('kanban')
 
+  const [linkInput, setLinkInput] = useState('')
+  const [submittingLink, setSubmittingLink] = useState(false)
+  
+  const [fileInput, setFileInput] = useState(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
+
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
   const isTeacher = currentUser.role === 'enseignant'
 
@@ -31,6 +37,7 @@ export default function ProjectDetail() {
         getMembers(id),
       ])
       setProject(pRes.data)
+      setLinkInput(pRes.data.final_link || '')
       setTasks(tRes.data)
       setMembers(mRes.data)
     } catch (e) {
@@ -77,6 +84,72 @@ export default function ProjectDetail() {
       alert(e.response?.data?.detail || "Erreur lors de l'ajout")
     } finally {
       setAddingMember(false)
+    }
+  }
+
+  async function handleDeleteProject() {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ? Cette action est irréversible.')) return
+    try {
+      await deleteProject(id)
+      navigate('/')
+    } catch (e) {
+      alert("Erreur lors de la suppression du projet")
+    }
+  }
+
+  async function handleRemoveMember(memberId) {
+    if (!confirm('Voulez-vous retirer ce membre du projet ?')) return
+    try {
+      await removeMember(id, memberId)
+      fetchAll()
+    } catch (e) {
+      alert("Erreur lors du retrait du membre")
+    }
+  }
+
+  async function handleSubmitFinalLink(e) {
+    e.preventDefault()
+    setSubmittingLink(true)
+    try {
+      await submitProjectFinalLink(id, linkInput)
+      alert("Lien soumis avec succès !")
+      fetchAll()
+    } catch(e) {
+      alert("Erreur lors de la soumission du lien")
+    } finally {
+      setSubmittingLink(false)
+    }
+  }
+
+  async function handleUploadFile(e) {
+    e.preventDefault()
+    if (!fileInput) return
+    setUploadingFile(true)
+    const formData = new FormData()
+    formData.append('file', fileInput)
+    try {
+      await uploadProjectFile(id, formData)
+      alert("Fichier uploadé avec succès !")
+      setFileInput(null)
+      fetchAll()
+    } catch(e) {
+      alert(e.response?.data?.detail || "Erreur lors de l'upload du fichier")
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  async function handleDownloadFile() {
+    try {
+      const res = await downloadProjectFile(id)
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', project.final_file_name)
+      document.body.appendChild(link)
+      link.click()
+    } catch(e) {
+      alert("Erreur lors du téléchargement du fichier")
     }
   }
 
@@ -129,6 +202,11 @@ export default function ProjectDetail() {
             <button className="btn btn-ghost btn-sm" onClick={handleExportPdf} id="export-pdf-btn">
               📄 PDF
             </button>
+            {project.owner_id === currentUser.id && (
+              <button className="btn btn-danger btn-sm" onClick={handleDeleteProject} style={{ background: 'var(--danger-bg)', color: 'var(--danger)', border: 'none' }}>
+                🗑️ Supprimer le projet
+              </button>
+            )}
           </div>
           {project.description && (
             <p className="page-subtitle" style={{ maxWidth: '600px' }}>
@@ -172,6 +250,88 @@ export default function ProjectDetail() {
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${percent}%` }} />
           </div>
+        </div>
+      )}
+
+      {/* ── Final Project Submission Box ─────────────────────── */}
+      {percent === 100 && (
+        <div className="card" style={{ marginBottom: '24px', border: '1px solid var(--success)' }}>
+          <h2 className="section-title" style={{ marginBottom: '14px', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>🎉</span> Projet Terminé !
+          </h2>
+          
+          {project.owner_id === currentUser.id && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <form onSubmit={handleSubmitFinalLink} style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500 }}>Soumettre un lien vers le projet (ex: GitHub, Drive) :</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input 
+                    type="text"
+                    className="input" 
+                    style={{ flex: 1, minWidth: '200px' }} 
+                    placeholder="Lien du projet (ex: https://github.com/...)" 
+                    value={linkInput}
+                    onChange={e => setLinkInput(e.target.value)}
+                    required
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={submittingLink}>
+                    {submittingLink ? '...' : (project.final_link ? 'Mettre à jour' : 'Soumettre')}
+                  </button>
+                </div>
+              </form>
+
+              <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+
+              <form onSubmit={handleUploadFile} style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                <label style={{ fontSize: '13px', fontWeight: 500 }}>Ou uploader un fichier final (ZIP, PDF, etc) :</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input 
+                    type="file"
+                    className="input" 
+                    style={{ flex: 1, minWidth: '200px', padding: '6px' }} 
+                    onChange={e => setFileInput(e.target.files[0])}
+                    required
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={uploadingFile || !fileInput}>
+                    {uploadingFile ? 'Upload...' : 'Uploader'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {(project.final_link || project.final_file_name) && project.owner_id !== currentUser.id && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 500 }}>Rendu final soumis :</p>
+              
+              {project.final_link && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>🔗</span>
+                  <a href={project.final_link.startsWith('http') ? project.final_link : `https://${project.final_link}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', fontSize: '14px', fontWeight: 600, wordBreak: 'break-all' }}>
+                    {project.final_link}
+                  </a>
+                </div>
+              )}
+
+              {project.final_file_name && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📦</span>
+                  <button className="btn btn-ghost btn-sm" onClick={handleDownloadFile} style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                    Télécharger {project.final_file_name}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {project.owner_id === currentUser.id && project.final_file_name && (
+            <div style={{ marginTop: '12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ color: 'var(--text2)' }}>Fichier actuel :</span> 
+              <button className="btn btn-ghost btn-sm" onClick={handleDownloadFile} style={{ padding: '0 4px', height: 'auto', fontWeight: 600 }}>
+                {project.final_file_name}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -249,7 +409,16 @@ export default function ProjectDetail() {
               transition: 'border-color 0.2s',
             }}>
               <div className="avatar avatar-sm">{m.prenom[0]}{m.nom[0]}</div>
-              {m.prenom} {m.nom}
+              <span>{m.prenom} {m.nom}</span>
+              {project.owner_id === currentUser.id && m.id !== project.owner_id && (
+                <button 
+                  onClick={() => handleRemoveMember(m.id)}
+                  style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', marginLeft: '4px', fontSize: '12px', padding: '0 4px' }}
+                  title="Retirer ce membre"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           ))}
         </div>

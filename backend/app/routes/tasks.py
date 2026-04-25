@@ -111,6 +111,18 @@ async def update_task(
 
     task.updated_at = datetime.utcnow()
     await task.save()
+
+    if task_update.statut == "Terminé":
+        project = await Project.get(task.project_id)
+        if project and project.enseignant_id:
+            all_tasks = await Task.find(Task.project_id == project.id).to_list()
+            if len(all_tasks) > 0 and all(t.statut == "Terminé" for t in all_tasks):
+                notif = Notification(
+                    user_id=project.enseignant_id,
+                    message=f"Le projet '{project.titre}' est terminé (toutes les tâches sont terminées)."
+                )
+                await notif.insert()
+
     return _task_out(task)
 
 

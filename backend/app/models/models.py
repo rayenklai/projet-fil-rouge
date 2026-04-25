@@ -32,6 +32,9 @@ class Project(Document):
     owner_id:    PydanticObjectId           # ref → User._id
     member_ids:  List[PydanticObjectId] = [] # refs → User._id
     enseignant_id: Optional[PydanticObjectId] = None  # ref → User (enseignant)
+    final_link:    Optional[str] = None
+    final_file_path: Optional[str] = None
+    final_file_name: Optional[str] = None
     created_at:  datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
@@ -55,7 +58,7 @@ class Message(Document):
     project_id: PydanticObjectId
     sender_id:  PydanticObjectId
     text:       str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=datetime.utcnow) 
 
     class Settings:
         name = "messages"

@@ -39,6 +39,11 @@ export const getMembers     = (id)          => api.get(`/projects/${id}/members`
 export const addMember      = (id, userId)  => api.post(`/projects/${id}/members`, { user_id: userId })
 export const getDashboardStats = ()         => api.get('/projects/dashboard/stats')
 export const exportPdf      = (id)          => api.get(`/projects/${id}/report/pdf`, { responseType: 'blob' })
+export const deleteProject  = (id)          => api.delete(`/projects/${id}`)
+export const removeMember   = (id, userId)  => api.delete(`/projects/${id}/members/${userId}`)
+export const submitProjectFinalLink = (id, link) => api.patch(`/projects/${id}/submit`, { final_link: link })
+export const uploadProjectFile = (id, formData) => api.post(`/projects/${id}/upload`, formData, { headers: { 'Content-Type': 'multipart/form-data' } })
+export const downloadProjectFile = (id) => api.get(`/projects/${id}/download`, { responseType: 'blob' })
 
 // ── Tasks ───────────────────────────────────────────────────────────────────
 export const getTasks     = (projectId)        => api.get(`/tasks/project/${projectId}`)

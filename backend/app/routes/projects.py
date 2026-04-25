@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+from fastapi.responses import StreamingResponse, FileResponse
 import io
+import os
 from beanie import PydanticObjectId
 from typing import List
 from app.models.models import Project, User, Task
-from app.schemas.schemas import ProjectCreate, ProjectOut, AddMemberRequest
+from app.schemas.schemas import ProjectCreate, ProjectOut, AddMemberRequest, ProjectSubmit
 from app.auth import get_current_user
 
 router = APIRouter()
@@ -20,6 +21,8 @@ def _project_out(p: Project) -> dict:
         "owner_id":    str(p.owner_id),
         "member_ids":  [str(m) for m in p.member_ids],
         "enseignant_id": str(p.enseignant_id) if p.enseignant_id else None,
+        "final_link":  p.final_link,
+        "final_file_name": p.final_file_name,
         "created_at":  p.created_at,
     }
 
@@ -211,4 +214,127 @@ async def export_pdf(project_id: str, current_user: User = Depends(get_current_u
         io.BytesIO(bytes(pdf_bytes)),
         media_type="application/pdf", 
         headers={"Content-Disposition": f"attachment; filename=rapport_{project_id}.pdf"}
+    )
+
+
+# ── Supprimer un projet ────────────────────────────────────────────────────────
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_project(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    project = await Project.get(PydanticObjectId(project_id))
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Seul le créateur peut supprimer le projet")
+    
+    await Task.find(Task.project_id == project.id).delete()
+    from app.models.models import Message
+    await Message.find(Message.project_id == project.id).delete()
+
+    await project.delete()
+
+
+# ── Retirer un membre du projet ───────────────────────────────────────────────
+@router.delete("/{project_id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member(
+    project_id: str,
+    member_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    project = await Project.get(PydanticObjectId(project_id))
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Seul le créateur peut retirer des membres")
+    
+    mid = PydanticObjectId(member_id)
+    if mid == project.owner_id:
+        raise HTTPException(status_code=400, detail="Le créateur ne peut pas être retiré du projet")
+        
+    if mid in project.member_ids:
+        project.member_ids.remove(mid)
+        await project.save()
+        
+        tasks = await Task.find(Task.project_id == project.id, Task.assignee_id == mid).to_list()
+        for t in tasks:
+            t.assignee_id = None
+            await t.save()
+
+# ── Soumettre le lien du projet final ──────────────────────────────────────────
+@router.patch("/{project_id}/submit", status_code=status.HTTP_200_OK)
+async def submit_final_project(
+    project_id: str,
+    body: ProjectSubmit,
+    current_user: User = Depends(get_current_user),
+):
+    project = await Project.get(PydanticObjectId(project_id))
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Seul le créateur peut soumettre le projet final")
+        
+    project.final_link = body.final_link
+    await project.save()
+    
+    return _project_out(project)
+
+
+# ── Uploader un fichier final ─────────────────────────────────────────────────
+@router.post("/{project_id}/upload", status_code=status.HTTP_200_OK)
+async def upload_final_file(
+    project_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    project = await Project.get(PydanticObjectId(project_id))
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+    
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Seul le créateur peut uploader le projet final")
+    
+    # Save the file
+    upload_dir = "uploads"
+    if not os.path.exists(upload_dir):
+        os.makedirs(upload_dir)
+        
+    file_name = f"{project_id}_{file.filename}"
+    file_path = os.path.join(upload_dir, file_name)
+    
+    with open(file_path, "wb") as buffer:
+        buffer.write(await file.read())
+        
+    project.final_file_path = file_path
+    project.final_file_name = file.filename
+    await project.save()
+    
+    return _project_out(project)
+
+
+# ── Télécharger un fichier final ──────────────────────────────────────────────
+@router.get("/{project_id}/download")
+async def download_final_file(
+    project_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    project = await Project.get(PydanticObjectId(project_id))
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+        
+    # Check access
+    if current_user.role != "enseignant" and current_user.id not in project.member_ids:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+        
+    if not project.final_file_path or not os.path.exists(project.final_file_path):
+        raise HTTPException(status_code=404, detail="Fichier introuvable")
+        
+    return FileResponse(
+        path=project.final_file_path, 
+        filename=project.final_file_name,
+        media_type="application/octet-stream"
     )

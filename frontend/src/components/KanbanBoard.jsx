@@ -12,7 +12,8 @@ export default function KanbanBoard({ tasks, members, projectId, onRefresh, user
   const [newTask, setNewTask]   = useState({ titre: '', description: '', assignee_id: '' })
   const [adding, setAdding]     = useState(false)
 
-  const isTeacher = userRole === 'enseignant'
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+  const isTeacher = userRole === 'enseignant' || currentUser.role === 'enseignant'
 
   async function handleStatusChange(taskId, newStatus) {
     try {
@@ -93,7 +94,7 @@ export default function KanbanBoard({ tasks, members, projectId, onRefresh, user
                     {/* Action buttons — hidden for teachers */}
                     {!isTeacher && (
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                        {COLUMNS.filter(c => c.key !== col.key).map(c => (
+                        {task.assignee_id === currentUser.id && COLUMNS.filter(c => c.key !== col.key).map(c => (
                           <button key={c.key} onClick={() => handleStatusChange(task.id, c.key)}
                             style={{
                               background: c.bg, color: c.color,
@@ -118,8 +119,8 @@ export default function KanbanBoard({ tasks, members, projectId, onRefresh, user
               })}
             </div>
 
-            {/* Add task button — hidden for teachers */}
-            {!isTeacher && (
+            {/* Add task button — hidden for teachers, and only in 'À faire' box */}
+            {!isTeacher && col.key === 'À faire' && (
               <>
                 {showAdd === col.key ? (
                   <form onSubmit={handleAddTask} style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
