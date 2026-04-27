@@ -10,6 +10,7 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState([])
   const [showNotifs, setShowNotifs] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark')
   const notifRef = useRef(null)
 
   const unreadCount = notifications.filter(n => !n.is_read).length
@@ -38,6 +39,13 @@ export default function Navbar() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark')
 
   async function fetchNotifications() {
     try {
@@ -124,6 +132,16 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* Theme toggle (desktop) */}
+          <button 
+            className="btn btn-ghost btn-sm desktop-only" 
+            onClick={toggleTheme} 
+            title="Changer le thème"
+            style={{ fontSize: '16px', padding: '4px 8px' }}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+
           {/* User info (desktop) */}
           <div className="user-info desktop-only">
             <div className="avatar avatar-sm">
@@ -166,6 +184,11 @@ export default function Navbar() {
         {/* Mobile notification shortcut */}
         <button onClick={() => { setMobileOpen(false); setShowNotifs(true) }}>
           🔔 Notifications {unreadCount > 0 && `(${unreadCount})`}
+        </button>
+
+        {/* Mobile Theme toggle */}
+        <button onClick={() => { setMobileOpen(false); toggleTheme() }}>
+          {theme === 'dark' ? '☀️ Mode Clair' : '🌙 Mode Sombre'}
         </button>
 
         <div style={{ flex: 1 }} />

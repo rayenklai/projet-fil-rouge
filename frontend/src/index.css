@@ -47,6 +47,39 @@
   --font-body:  'Inter', sans-serif;
 }
 
+[data-theme="light"] {
+  --bg:         #f0f2f5;
+  --bg2:        #ffffff;
+  --bg3:        #e4e6eb;
+  --bg4:        #d8dadf;
+  --border:     #ced0d4;
+  --border-l:   #bcc0c4;
+
+  --accent:     #5c4ecc;
+  --accent-h:   #7c6aff;
+  --accent-d:   #3b2f99;
+  --accent-glow:#5c4ecc30;
+  --accent2:    #ff4a73;
+  --accent2-bg: #ff4a7318;
+
+  --text:       #050505;
+  --text2:      #65676b;
+  --text3:      #8a8d91;
+}
+
+[data-theme="light"] .card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(240,242,245,0.65));
+}
+[data-theme="light"] .navbar {
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+}
+[data-theme="light"] .skeleton {
+  background: linear-gradient(90deg, #e4e6eb 25%, #d8dadf 50%, #e4e6eb 75%);
+}
+[data-theme="light"] .burger span {
+  background: var(--text);
+}
+
 /* ── Base ───────────────────────────────────────────────────────────────── */
 html { scroll-behavior: smooth; }
 
